@@ -13,6 +13,7 @@ Operators are:
  * Two such blocks cannot appear in sequence
  * This can't be the first block of a command
  * A command cannot be constituted only of such blocks
+* Spaces can be used as part of source names, but the strings will be trimmed and inner spaces will be replaced with underscores. 
 
 ## Examples
 

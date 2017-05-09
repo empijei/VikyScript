@@ -1,8 +1,4 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-package main
+package vikyscript
 
 import (
 	"fmt"
@@ -42,15 +38,24 @@ const (
 	itemError itemType = iota // error occurred; value is text of error
 	itemEOF
 	itemSpace // run of spaces separating arguments
-	itemLList
-	itemLParam
-	itemRList
-	itemRParam
+	itemLeftList
+	itemLeftParam
+	itemRightList
+	itemRightParam
+	itemComma
+	itemColon
+	itemOptional
+	itemShuffle
+	itemIgnore
+	itemLeftParen
+	itemRightParen
 	// Keywords appear after all the rest.
 	itemKeyword     // used only to delimit the keywords
 	itemCommandName // name of the command
 	itemWord        // words
 	itemListName
+	itemParamName
+	itemParamType
 )
 
 const eof = -1
@@ -192,17 +197,26 @@ func (l *lexer) run() {
 }
 
 func (l *lexer) unexpectedChar(r rune) stateFn {
-	return l.errorf("Unexpected %s at character %d, line %d", r, l.pos, l.line)
+	if r == eof {
+		return l.errorf("Unexpected EOF at character %d, line %d", l.pos, l.line)
+	}
+	return l.errorf("Unexpected %#U at character %d, line %d", r, l.pos, l.line)
 }
 
 // state functions
 
 const (
+	openParen   = '('
+	closedParen = ')'
 	openList    = '['
 	closedList  = ']'
 	openParam   = '{'
 	closedParam = '}'
 	nameDelim   = ':'
+	listDelim   = ','
+	shuffle     = '#'
+	optional    = '?'
+	ignore      = '*'
 )
 
 // lexCommandName scans until an opening action delimiter, "{{".
@@ -210,14 +224,14 @@ func lexCommandName(l *lexer) stateFn {
 	l.width = 0
 	for {
 		switch r := l.next(); {
-		case r == ':':
+		case r == nameDelim:
 			l.backup()
 			l.emit(itemCommandName)
 			l.next()
-			l.ignore()
+			l.emit(itemColon)
 			return lexCommand
-		case isAlphaNumeric(r):
-			//keep going
+		case isAlphaNumeric(r) || isSpace(r):
+			//keep going, the parser will handle whitespace
 		default:
 			return l.unexpectedChar(r)
 		}
@@ -226,17 +240,38 @@ func lexCommandName(l *lexer) stateFn {
 
 func lexCommand(l *lexer) stateFn {
 	for {
-		switch r := l.peek(); {
+		switch r := l.next(); {
 		case isSpace(r):
 			return lexSpace
 		case isAlphaNumeric(r):
 			return lexWord
 		case r == openList:
-			l.emit(itemLList)
+			l.emit(itemLeftList)
 			return lexList
 		case r == openParam:
+			l.emit(itemLeftParam)
 			return lexParam
-		//TODO handle eof
+		case r == eof:
+			l.emit(itemEOF)
+			if l.parenDepth != 0 {
+				return l.errorf("Unexpected EOF: unmatched left paren")
+			}
+			return nil
+		case r == optional:
+			l.emit(itemOptional)
+		case r == shuffle:
+			l.emit(itemShuffle)
+		case r == ignore:
+			l.emit(itemIgnore)
+		case r == openParen:
+			l.emit(itemLeftParen)
+			l.parenDepth++
+		case r == closedParen:
+			l.emit(itemRightParen)
+			l.parenDepth--
+			if l.parenDepth < 0 {
+				return l.unexpectedChar(r)
+			}
 		default:
 			return l.unexpectedChar(r)
 		}
@@ -258,36 +293,32 @@ func lexWord(l *lexer) stateFn {
 func lexList(l *lexer) stateFn {
 	for isSpace(l.peek()) {
 		l.next()
-		l.ignore()
+		l.emit(itemSpace)
 	}
 	for {
 		switch r := l.peek(); {
-		case isAlphaNumeric(r):
+		case isAlphaNumeric(r) || isSpace(r):
 			//either parsing the list name or the first element of the list
+			//parser will be responsible of trimming/replacing whitespace
 			l.next()
-		case r == ',':
+		case r == listDelim:
 			//this is an unnamed list, let's emit the word and keep lexing
 			l.emit(itemWord)
 			l.next()
-			l.ignore()
+			l.emit(itemComma)
 			return lexUnnamedList
-		case isSpace(r):
-			//we've parsed some alnum chars and now we match a space, this can't
-			//be a function name
-			l.next()
-			return lexUnnamedList
-		case r == ':':
+		case r == nameDelim:
 			l.emit(itemListName)
 			l.next()
-			l.ignore()
+			l.emit(itemColon)
 			return lexUnnamedList
 		case r == closedList:
 			l.emit(itemWord)
 			l.next()
-			l.emit(itemRList)
+			l.emit(itemRightList)
 			return lexCommand
 		default:
-			l.unexpectedChar(r)
+			return l.unexpectedChar(r)
 		}
 	}
 }
@@ -297,7 +328,7 @@ func lexUnnamedList(l *lexer) stateFn {
 		switch r := l.next(); {
 		case isAlphaNumeric(r) || isSpace(r):
 			//keep going
-		case r == ',':
+		case r == listDelim:
 			l.backup()
 			l.emit(itemWord)
 			l.next()
@@ -306,9 +337,55 @@ func lexUnnamedList(l *lexer) stateFn {
 			l.backup()
 			l.emit(itemWord)
 			l.next()
-			l.emit(itemRList)
+			l.emit(itemRightList)
 			return lexCommand
 		default:
+			return l.unexpectedChar(r)
+		}
+	}
+}
+
+func lexParam(l *lexer) stateFn {
+	for isSpace(l.peek()) {
+		l.next()
+		l.ignore()
+	}
+	for {
+		switch r := l.peek(); {
+		case isAlphaNumeric(r) || isSpace(r):
+			//parsing the name of the command, parser will be responsible of
+			//handling whitespace
+			l.next()
+		case r == nameDelim:
+			l.emit(itemParamName)
+			l.next()
+			l.emit(itemColon)
+			return lexTypedParam
+		case r == closedParam:
+			l.emit(itemParamName)
+			l.next()
+			l.emit(itemRightParam)
+			return lexCommand
+		default:
+			return l.unexpectedChar(r)
+		}
+	}
+}
+
+func lexTypedParam(l *lexer) stateFn {
+	for {
+		switch r := l.next(); {
+		case isAlphaNumeric(r) || isSpace(r):
+			//parser will handle whitespace
+			//this could be removed...
+		case r == closedParam:
+			l.backup()
+			l.emit(itemParamType)
+			l.next()
+			l.emit(itemRightParam)
+			return lexCommand
+		default:
+			return l.unexpectedChar(r)
 		}
 	}
 }
