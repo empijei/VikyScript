@@ -1,0 +1,11 @@
+        p := C.FuncThatReturnsNullTerminatedCharArray() // returns **char 
+        var strings []string 
+        q := uintptr(unsafe.Pointer(p)) 
+        for { 
+                p = (**C.char)(unsafe.Pointer(q)) 
+                if *p == nil { 
+                        break 
+                } 
+                strings = append(strings, C.GoString(*p)) 
+                q += unsafe.Sizeof(q) 
+        } 

@@ -13,11 +13,9 @@ type Tree struct {
 	Root      *ListNode // top-level root of the tree.
 	text      string    // text parsed to create the template (or its parent)
 	// Parsing only; cleared after parse.
-	funcs     []map[string]interface{}
 	lex       *lexer
 	token     [3]item // three-token lookahead for parser.
 	peekCount int
-	vars      []string // variables defined at the moment.
 	treeSet   map[string]*Tree
 }
 
@@ -34,15 +32,11 @@ func (t *Tree) Copy() *Tree {
 	}
 }
 
-// Parse returns a map from template name to parse.Tree, created by parsing the
-// templates described in the argument string. The top-level template will be
-// given the specified name. If an error is encountered, parsing stops and an
-// empty map is returned with the error.
-func Parse(name, text, leftDelim, rightDelim string, funcs ...map[string]interface{}) (map[string]*Tree, error) {
+func Parse(name, text string) (map[string]*Tree, error) {
 	treeSet := make(map[string]*Tree)
 	t := New(name)
 	t.text = text
-	_, err := t.Parse(text, leftDelim, rightDelim, treeSet, funcs...)
+	_, err := t.Parse(text, treeSet)
 	return treeSet, err
 }
 
@@ -114,8 +108,7 @@ func (t *Tree) peekNonSpace() (token item) {
 // New allocates a new parse tree with the given name.
 func New(name string, funcs ...map[string]interface{}) *Tree {
 	return &Tree{
-		Name:  name,
-		funcs: funcs,
+		Name: name,
 	}
 }
 
@@ -196,19 +189,15 @@ func (t *Tree) recover(errp *error) {
 }
 
 // startParse initializes the parser, using the lexer.
-func (t *Tree) startParse(funcs []map[string]interface{}, lex *lexer, treeSet map[string]*Tree) {
+func (t *Tree) startParse(lex *lexer, treeSet map[string]*Tree) {
 	t.Root = nil
 	t.lex = lex
-	t.vars = []string{"$"}
-	t.funcs = funcs
 	t.treeSet = treeSet
 }
 
 // stopParse terminates parsing.
 func (t *Tree) stopParse() {
 	t.lex = nil
-	t.vars = nil
-	t.funcs = nil
 	t.treeSet = nil
 }
 
@@ -216,10 +205,10 @@ func (t *Tree) stopParse() {
 // the template for execution. If either action delimiter string is empty, the
 // default ("{{" or "}}") is used. Embedded template definitions are added to
 // the treeSet map.
-func (t *Tree) Parse(text, leftDelim, rightDelim string, treeSet map[string]*Tree, funcs ...map[string]interface{}) (tree *Tree, err error) {
+func (t *Tree) Parse(text string, treeSet map[string]*Tree) (tree *Tree, err error) {
 	defer t.recover(&err)
 	t.ParseName = t.Name
-	t.startParse(funcs, lex(t.Name, text), treeSet)
+	t.startParse(lex(t.Name, text), treeSet)
 	t.text = text
 	t.parse()
 	t.add()
@@ -249,4 +238,27 @@ func IsEmptyTree(n Node) bool {
 // It runs to EOF.
 func (t *Tree) parse() {
 	t.Root = t.newList(t.peek().pos)
+	for t.peek().typ != itemEOF {
+		/*
+			if t.peek().typ == itemLeftDelim {
+				delim := t.next()
+				if t.nextNonSpace().typ == itemDefine {
+					newT := New("definition") // name will be updated once we know it.
+					newT.text = t.text
+					newT.ParseName = t.ParseName
+					newT.startParse(t.funcs, t.lex, t.treeSet)
+					newT.parseDefinition()
+					continue
+				}
+				t.backup2(delim)
+			}
+			switch n := t.textOrAction(); n.Type() {
+			case nodeEnd, nodeElse:
+				t.errorf("unexpected %s", n)
+			default:
+				t.Root.append(n)
+			}
+		*/
+	}
+
 }

@@ -37,8 +37,14 @@ func (t NodeType) Type() NodeType {
 }
 
 const (
-	NodeText NodeType = iota // Plain text.
-	NodeList                 // A list of Nodes.
+	NodeWord NodeType = iota // Plain text.
+	NodeList
+	NodeListWord
+	NodeParen
+	NodeParam
+	NodeIgnore
+	NodeShuffle
+	NodeOptional
 )
 
 // Nodes.
@@ -95,7 +101,7 @@ type TextNode struct {
 }
 
 func (t *Tree) newText(pos Pos, text string) *TextNode {
-	return &TextNode{tr: t, NodeType: NodeText, Pos: pos, Text: []byte(text)}
+	return &TextNode{tr: t, NodeType: NodeWord, Pos: pos, Text: []byte(text)}
 }
 
 func (t *TextNode) String() string {
@@ -107,5 +113,5 @@ func (t *TextNode) tree() *Tree {
 }
 
 func (t *TextNode) Copy() Node {
-	return &TextNode{tr: t.tr, NodeType: NodeText, Pos: t.Pos, Text: append([]byte{}, t.Text...)}
+	return &TextNode{tr: t.tr, NodeType: NodeWord, Pos: t.Pos, Text: append([]byte{}, t.Text...)}
 }

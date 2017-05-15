@@ -1,7 +1,6 @@
 package vikyscript
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 )
@@ -43,16 +42,16 @@ var lexTests = []struct {
 	{"paramspace", "command:{ foo } "},
 	{"typedparamspace", "command: { foo : integer }"},
 	{"unary", "command: * ?(foo) bar #(foo bar) * ?foo"},
+	{"nested", "command: * ?(foo #(bar bar)) "},
 }
 
 func TestCorrect(t *testing.T) {
 	for _, tt := range lexTests {
-		fmt.Printf("\nNow parsing: %s\n\t<%s>\n", tt.name, tt.input)
+		t.Logf("\nNow parsing: %s\n\t<%s>\n", tt.name, tt.input)
 		l := lex(tt.name, tt.input)
 		var i item
 		for i = range l.items {
-			fmt.Print(itemNames[i.typ] + " ")
-			fmt.Println(i)
+			t.Log(itemNames[i.typ] + " " + i.String())
 		}
 		if i.typ == itemError {
 			indicator := strings.Repeat(" ", int(l.pos))
@@ -76,12 +75,11 @@ var lexErrorTests = []struct {
 
 func TestError(t *testing.T) {
 	for _, tt := range lexErrorTests {
-		fmt.Printf("\nNow parsing: %s\n\t<%s>\n", tt.name, tt.input)
+		t.Logf("\nNow parsing: %s\n\t<%s>\n", tt.name, tt.input)
 		l := lex(tt.name, tt.input)
 		var i item
 		for i = range l.items {
-			fmt.Print(itemNames[i.typ] + " ")
-			fmt.Println(i)
+			t.Log(itemNames[i.typ] + " " + i.String())
 		}
 		if i.typ != itemError {
 			t.Errorf("Expected error while parsing %s:\n<%s>", tt.name, tt.input)

@@ -23,8 +23,8 @@ func (i item) String() string {
 		return "EOF"
 	case i.typ == itemError:
 		return i.val
-	case i.typ > itemKeyword:
-		return fmt.Sprintf("<%s>", i.val)
+	//case i.typ > itemKeyword:
+	//return fmt.Sprintf("<%s>", i.val)
 	case len(i.val) > 10:
 		return fmt.Sprintf("%.10q...", i.val)
 	}
@@ -53,9 +53,9 @@ const (
 	itemKeyword     // used only to delimit the keywords
 	itemCommandName // name of the command
 	itemWord        // words
-	itemListName
-	itemParamName
-	itemParamType
+	itemListName    // name of a named list
+	itemParamName   // name of a parameter
+	itemParamType   // type of a typed parameter
 )
 
 const eof = -1
