@@ -262,3 +262,42 @@ func (t *Tree) parse() {
 	}
 
 }
+
+/*Parsing schema
+Parsename reads name, colon and creates the object
+
+append to the tree
+Parsebody:
+* word
+* ignore
+* optional()
+* shuffle()
+* list()
+* param()
+
+Optional:
+* word
+* paren()
+
+Shuffle:
+* paren()
+
+List:
+* listname
+* word
+
+Param:
+* paramname
+* paramtype
+
+Paren:
+* word
+
+*/
+
+/*
+Matching schema
+
+
+
+*/

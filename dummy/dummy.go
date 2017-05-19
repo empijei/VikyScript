@@ -67,6 +67,8 @@ type MatchResult struct {
 }
 
 func Match(text string) (commandName string, paramValues map[string]string, err error) {
+	//Matching is case insensitive for the sake of what is right
+	text = strings.ToLower(text)
 	pool := runtime.NumCPU()
 	tomatch := make(chan Matcher)
 	matchedChan := make(chan MatchResult)
