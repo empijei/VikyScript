@@ -1,0 +1,23 @@
+digraph{
+	//volumeHandler: #([what:increase,decrease,lower] * volume ?( * {percentage:integer} ?percent));
+	root[label="Root: volumeHandler"];
+	root->shuffle;
+	namedList[label="NamedList: What"];
+	shuffle->namedList;
+	wordIncrease[label="Word:Increase"];
+	wordDecrease[label="Word:Decrease"];
+	wordLower[label="Word:Lower"];
+	namedList->wordIncrease;
+	namedList->wordDecrease;
+	namedList->wordLower;
+	shuffle->ignore1;
+	volume[label="Word:Volume"];
+	shuffle->volume;
+	shuffle->optional;
+	optional->ignore2;
+	param[label="TypedParam: Percentage,integer"];
+	optional->param;
+	optional->optional2;
+	wordPercent[label="Word:Percent"];
+	optional2->wordPercent;
+}

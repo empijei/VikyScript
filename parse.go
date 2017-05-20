@@ -291,7 +291,13 @@ Param:
 * paramtype
 
 Paren:
-* word
+* ignore
+* optional()
+* shuffle()
+* list()
+* param()
+
+ word
 
 */
 
